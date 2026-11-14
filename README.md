@@ -1,27 +1,36 @@
 # offroad-road-drift
 
-## Vehicle input (Unreal Engine C++)
+## Unreal Engine 5 vehicle modules
 
-`Source/VehicleInput` contains a reusable `UVehicleInputComponent` input module.
-Add `VehicleInput` to your game's module dependencies and add the component to
-the vehicle pawn. Merge `Config/DefaultInput.ini` into the Unreal project's
-`Config/DefaultInput.ini` so the named axes are available. In the pawn's
-`SetupPlayerInputComponent`, call `VehicleInputComponent->BindInput(PlayerInputComponent)`.
+`Source/VehicleInput` contains the reusable `UVehicleInputComponent` input
+module. `Source/OffRoadVehicle` contains `AOffRoadVehicleComponent`, an
+`AWheeledVehiclePawn` subclass that consumes that input and controls a Chaos
+wheeled vehicle. Add both `VehicleInput` and `OffRoadVehicle` to the game's
+module dependencies, and enable the `ChaosVehiclesPlugin` project plugin.
 
-The vehicle controller can read the current input and account for speed when
-applying its steering angle:
+Merge `Config/DefaultInput.ini` into the Unreal project's
+`Config/DefaultInput.ini`. In the vehicle Blueprint or defaults, set the
+movement component's four wheel setups to use `UOffRoadFrontWheel` for the
+front bones and `UOffRoadRearWheel` for the rear bones. The wheel radius,
+spring rate/preload, suspension travel, damping, steering, and brake settings
+are tuned in those wheel classes; mesh-specific wheel bone names must come
+from the vehicle skeletal mesh.
 
-```cpp
-const FVehicleInputState Input = VehicleInputComponent->GetInputState(GetVelocity().Size());
-```
+The pawn binds vehicle input automatically. It applies the speed-reduced
+steering, throttle, brake, and handbrake to `UChaosWheeledVehicleMovementComponent`.
+The R / gamepad North reset input rights the vehicle on the press edge; boost
+applies forward force while held. AWD/rear-drive switching, manual shifting,
+and winch controls are also bound by the pawn. The built-in UE5 differential
+supports drive type and front/rear torque split, not a physical hard locker:
+the lock toggle selects a fixed 50:50 center split and calls
+`OnDifferentialLockChanged` for a project-specific locker implementation.
+Assign `WinchAnchor` to an actor for the winch to pull toward. Call
+`SetSurfaceType` from the ground/material handling code to apply the asphalt,
+gravel, or mud wheel-friction multiplier.
 
-Apply `Input.Throttle`, `Input.Brake`, and `Input.Steer` to the vehicle's
-drivetrain and steering; handle `Input.Handbrake`, `Input.Boost`, and
-`Input.ResetVehicle` in the corresponding vehicle systems. The reset flag is
-held while its key/button is held, so the vehicle should trigger a reset on its
-press edge. Speed is in Unreal centimeters per second: steering tapers linearly
-to 45% of its input value by 3000 cm/s. Keyboard throttle, brake, and steering
-ramp at 5.0 per second. Gamepad stick and trigger axes use a 0.12 deadzone.
+Speed is in Unreal centimeters per second: steering tapers linearly to 45% of
+its input value by 3000 cm/s. Keyboard throttle, brake, and steering ramp at
+5.0 per second. Gamepad stick and trigger axes use a 0.12 deadzone.
 
 ### Controls
 
@@ -33,3 +42,7 @@ ramp at 5.0 per second. Gamepad stick and trigger axes use a 0.12 deadzone.
 | Handbrake | Spacebar | South button (A / Cross) |
 | Boost | Left Shift | East button (B / Circle) |
 | Reset vehicle | R | North button (Y / Triangle) |
+| Shift up / down | E / Q | Right / Left Shoulder |
+| Toggle AWD / rear drive | V | D-pad Left |
+| Toggle differential lock | C | D-pad Right |
+| Winch (hold) | T | Left Stick Click |
